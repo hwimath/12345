@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>다항식 빈출 (3)</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
+  <style>
+    body {
+      background-color: white;
+      color: black;
+      font-family: sans-serif;
+      margin: 20px;
+    }
+    .hidden { display: none; }
+    #energyBarContainer {
+      width: 100%;
+      background-color: white;
+      border: 1px solid black;
+      height: 20px;
+      margin-top: 10px;
+    }
+    #energyBar {
+      height: 100%;
+      background-color: black;
+      width: 100%;
+    }
+    button { margin: 5px; }
+  </style>
+</head>
+<body>
+  <h1>다항식 빈출 (3)</h1>
+  
+  <!-- 시작 화면 -->
+  <div id="startScreen">
+    <label>이름: <input type="text" id="playerName"></label><br>
+    <label>난이도: 
+      <select id="difficulty">
+        <option value="최상">최상</option>
+        <option value="상">상</option>
+        <option value="중">중</option>
+        <option value="하">하</option>
+      </select>
+    </label><br>
+    <button id="startButton">시작</button>
+  </div>
+  
+  <!-- 게임 화면 -->
+  <div id="gameScreen" class="hidden">
+    <div>전체 게임 시간: <span id="gameTime">0</span>초</div>
+    <div>남은 기회: <span id="lives">3</span></div>
+    <div id="questionContainer"></div>
+    <div id="optionsContainer"></div>
+    <div id="feedback"></div>
+    <div id="energyBarContainer">
+      <div id="energyBar"></div>
+    </div>
+    <button id="nextButton" class="hidden">다음 문제</button>
+  </div>
+  
+  <!-- 종료 화면 -->
+  <div id="endScreen" class="hidden">
+    <div>게임 종료! 최종 점수: <span id="finalScore"></span></div>
+    <button id="sendScoreButton">점수전송</button>
+    <pre id="response"></pre>
+  </div>
+  
+  <script>
+    // 문제 데이터 (모든 문제를 무작위 순서로 출제)
+    const problems = [
+      {
+        // 문제 유형 1: 다항식의 약수 조건으로 a, b 구하기
+        question: "다항식 \\(f(x)=x^3+ax^2+bx+10\\)이 \\((x-1)\\)과 \\((x-2)\\)로 나누어 떨어질 때, \\(4a-2b\\)의 값은?",
+        options: ["30", "32", "34", "36", "38"],
+        correct: "34",
+        explanation: "조건에 의해 \\(f(1)=1+a+b+10=0 \\Rightarrow a+b=-11\\)와 \\(f(2)=8+4a+2b+10=0 \\Rightarrow 2a+b=-9\\)이다. 두 식의 차로 \\(a=2\\)를 구하고, \\(b=-13\\)임을 얻는다. 그러므로 \\(4a-2b=8+26=34\\)."
+      },
+      {
+        // 문제 유형 2: 다항식 나눗셈과 몫의 평가
+        question: "다항식 \\(3x^3+5x^2+8x+4\\)를 \\(3x+2\\)로 나누었을 때의 몫을 \\(Q(x)\\)라 하자. \\(Q(2)\\)의 값은?",
+        options: ["6", "7", "8", "9", "10"],
+        correct: "8",
+        explanation: "인수분해로 \\(3x^3+5x^2+8x+4=(3x+2)(x^2+x+2)\\)이므로, \\(Q(2)=2^2+2+2=8\\)이다."
+      },
+      {
+        // 문제 유형 3: 나머지 정리 이용 (수치 간소화)
+        question: "다항식 \\(11^3+3\\times11^2-4\\times11-a\\)가 \\(13\\)으로 나누어떨어질 때, 상수 \\(a\\)의 값은?",
+        options: ["10", "11", "12", "13", "14"],
+        correct: "12",
+        explanation: "모듈러 연산에서 \\(11\\equiv -2\\) (mod 13)이므로, \\((-2)^3+3(-2)^2-4(-2)-a=-8+12+8-a=12-a\\)가 13의 배수가 되어야 하므로 \\(a=12\\)."
+      },
+      {
+        // 문제 유형 4: 분수와 인수분해를 이용한 식의 값 구하기
+        question: "다음 식의 값은? \\(\\dfrac{1001^3-216}{1001\\times(1001+6)+36}\\)",
+        options: ["993", "994", "995", "996", "997"],
+        correct: "995",
+        explanation: "여기서 \\(216=6^3\\)이며, 분모는 \\(1001^2+6\\times1001+6^2\\)이다. 인수분해에 의해 \\(1001^3-6^3=(1001-6)(1001^2+6\\times1001+6^2)\\)이므로 값은 \\(1001-6=995\\)이다."
+      },
+      {
+        // 문제 유형 5: 인수분해 후 상수들의 합 구하기
+        question: "다항식 \\(x^4+6x^2+25\\)가 \\((x^2+ax+b)(x^2-cx+d)\\)로 인수분해될 때, (단, \\(a,b,c,d\\)는 양수이다.) \\(a+b+c+d\\)의 값은?",
+        options: ["12", "13", "14", "15", "16"],
+        correct: "14",
+        explanation: "전개하면 \\(x^3\\)항의 계수에서 \\(a=c\\)가 되고, \\(x\\)항에서 \\(d=b\\)가 되어 \\(x^2\\)항은 \\(2b-a^2=6\\)이며, 상수항은 \\(b^2=25\\)에서 \\(b=5, a=2\\)임을 얻는다. 따라서 \\(a+b+c+d=2+5+2+5=14\\)."
+      }
+    ];
+    
+    // 문제 및 보기 섞기 함수
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+    
+    // 전역 변수들
+    let currentProblemIndex = 0;
+    let currentProblem = null;
+    let score = 0;
+    let lives = 3;
+    let totalTime = 0;
+    let questionTimer = null;
+    let questionTimeLimit = 0;
+    let gameInterval = null;
+    let difficulty = "";
+    
+    // 난이도별 설정: 시간(초) 및 문제당 점수
+    const difficultySettings = {
+      "최상": { time: 20, points: 20 },
+      "상": { time: 30, points: 15 },
+      "중": { time: 40, points: 13 },
+      "하": { time: 99999, points: 10 } // 시간 제한 없음
+    };
+    
+    // 게임 시작
+    document.getElementById("startButton").addEventListener("click", function(){
+      const name = document.getElementById("playerName").value.trim();
+      if (!name) {
+        alert("이름을 입력해주세요.");
+        return;
+      }
+      difficulty = document.getElementById("difficulty").value;
+      questionTimeLimit = difficultySettings[difficulty].time;
+      document.getElementById("startScreen").classList.add("hidden");
+      document.getElementById("gameScreen").classList.remove("hidden");
+      shuffleArray(problems);
+      startGameTimer();
+      showNextProblem();
+    });
+    
+    // 전체 게임 시간 타이머
+    function startGameTimer() {
+      gameInterval = setInterval(function(){
+        totalTime++;
+        document.getElementById("gameTime").innerText = totalTime;
+      }, 1000);
+    }
+    
+    // 다음 문제 출력
+    function showNextProblem() {
+      // 에너지바 초기화
+      resetEnergyBar();
+      document.getElementById("feedback").innerText = "";
+      document.getElementById("nextButton").classList.add("hidden");
+      
+      if (currentProblemIndex >= problems.length) {
+        shuffleArray(problems);
+        currentProblemIndex = 0;
+      }
+      currentProblem = problems[currentProblemIndex];
+      currentProblemIndex++;
+      document.getElementById("questionContainer").innerHTML = "<p>" + currentProblem.question + "</p>";
+      
+      // 보기를 섞어서 출력
+      let options = currentProblem.options.slice();
+      shuffleArray(options);
+      let optionsHTML = "";
+      options.forEach(function(option) {
+        optionsHTML += "<button class='optionButton'>" + option + "</button>";
+      });
+      document.getElementById("optionsContainer").innerHTML = optionsHTML;
+      MathJax.typeset(); // 동적 수식 렌더링
+      
+      // 보기 버튼 이벤트 등록
+      document.querySelectorAll(".optionButton").forEach(function(button){
+        button.addEventListener("click", handleOptionClick);
+      });
+      
+      // 시간 제한이 있는 경우 에너지바 타이머 시작
+      if (questionTimeLimit < 99999) {
+        startQuestionTimer();
+      }
+    }
+    
+    // 보기를 클릭했을 때
+    function handleOptionClick(event) {
+      document.querySelectorAll(".optionButton").forEach(function(btn){
+        btn.disabled = true;
+      });
+      clearInterval(questionTimer);
+      const selected = event.target.innerText;
+      let feedbackText = "";
+      if (selected === currentProblem.correct) {
+        score += difficultySettings[difficulty].points;
+        feedbackText = "정답! " + currentProblem.explanation;
+      } else {
+        lives--;
+        feedbackText = "오답! 정답은 " + currentProblem.correct + "입니다. " + currentProblem.explanation;
+        document.getElementById("lives").innerText = lives;
+      }
+      document.getElementById("feedback").innerText = feedbackText;
+      MathJax.typeset();
+      
+      if (lives <= 0) {
+        endGame();
+      } else {
+        document.getElementById("nextButton").classList.remove("hidden");
+      }
+    }
+    
+    document.getElementById("nextButton").addEventListener("click", function(){
+      showNextProblem();
+    });
+    
+    // 에너지바 타이머 시작 (문제 시간 제한)
+    function startQuestionTimer() {
+      const energyBar = document.getElementById("energyBar");
+      let timeLeft = questionTimeLimit;
+      clearInterval(questionTimer);
+      questionTimer = setInterval(function(){
+        timeLeft -= 0.1;
+        let percentage = (timeLeft / questionTimeLimit) * 100;
+        if (percentage < 0) percentage = 0;
+        energyBar.style.width = percentage + "%";
+        if (timeLeft <= 0) {
+          clearInterval(questionTimer);
+          lives--;
+          document.getElementById("lives").innerText = lives;
+          document.getElementById("feedback").innerText = "시간 초과! 정답은 " + currentProblem.correct + "입니다. " + currentProblem.explanation;
+          MathJax.typeset();
+          if (lives <= 0) {
+            endGame();
+          } else {
+            document.getElementById("nextButton").classList.remove("hidden");
+          }
+        }
+      }, 100);
+    }
+    
+    // 에너지바 리셋
+    function resetEnergyBar() {
+      const energyBar = document.getElementById("energyBar");
+      energyBar.style.width = "100%";
+    }
+    
+    // 게임 종료 처리
+    function endGame() {
+      clearInterval(gameInterval);
+      clearInterval(questionTimer);
+      document.getElementById("gameScreen").classList.add("hidden");
+      document.getElementById("endScreen").classList.remove("hidden");
+      document.getElementById("finalScore").innerText = score;
+    }
+    
+    // 점수 전송 버튼
+    document.getElementById("sendScoreButton").addEventListener("click", function(){
+      const name = document.getElementById("playerName").value.trim();
+      saveData("다항식 빈출 (3)", name, score, totalTime);
+    });
+    
+    // 점수 전송 함수 (서버에 데이터 전송)
+    function saveData(game, name, score, elapsedTime) {
+      const FUNCTION_URL = "https://us-central1-record-f420d.cloudfunctions.net/report";
+      const requestData = {
+        game,
+        name,
+        score: parseInt(score, 10),
+        elapsedTime: parseInt(elapsedTime, 10)
+      };
+    
+      fetch(FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      })
+      .then(response => response.json().then(data => ({ ok: response.ok, data })))
+      .then(result => {
+        if (result.ok) {
+          document.getElementById('response').innerText = "성공: " + JSON.stringify(result.data, null, 2);
+        } else {
+          document.getElementById('response').innerText = "오류: " + JSON.stringify(result.data, null, 2);
+        }
+      })
+      .catch(error => {
+        console.error('요청 실패:', error);
+        document.getElementById('response').innerText = "네트워크 오류: " + error.message;
+      });
+    }
+  </script>
+</body>
+</html>
